@@ -1,5 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const Product = require("../models/product");
+const mongoose = require("mongoose");
 
 router.get("/", (req, res, next) => {
   res.status(200).json({
@@ -8,10 +10,19 @@ router.get("/", (req, res, next) => {
 });
 
 router.post("/", (req, res, next) => {
-  const product = {
+  const product = new Product({
+    _id: new mongoose.Types.ObjectId(),
     name: req.body.name,
     price: req.body.price,
-  };
+  });
+
+  product
+    .save()
+    .then((result) => {
+      console.log(result);
+    })
+    .catch((err) => console.log(err)); //chains into a promise
+
   res.status(201).json({
     message: "handling POST requests to /products",
     createdProduct: product,
@@ -19,16 +30,15 @@ router.post("/", (req, res, next) => {
 });
 
 router.get("/:productId", (req, res, next) => {
-  if (id === "special") {
-    res.status(200).json({
-      message: "You discovered a special ID",
-      id: req.params.productId,
-    });
-  } else {
-    res.status(200).json({
-      message: " You passed an ID",
-    });
-  }
+  const id = req.params.productId;
+  Product.findById(id)
+  .exec()
+  .then(doc => {
+    console.log(doc);
+  })
+  .catch(err => {
+    console.log(err);
+  })
 });
 
 router.patch("/:productId", (req, res, next) => {

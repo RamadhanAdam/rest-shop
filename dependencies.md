@@ -4,3 +4,5 @@
 -`npm install --save morgan` - logging package
 
 -`npm install --save body-parser` - parsing the body of incoming requests
+
+npm install --save mongoose
