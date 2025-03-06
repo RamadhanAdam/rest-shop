@@ -3,9 +3,10 @@ const router = express.Router();
 const mongoose = require('mongoose');
 const Order = require('../models/order');
 const Product = require('../models/product');
+const checkAuth = require('../middleware/chek-auth')
 
 // GET all orders
-router.get('/', (req, res, next) => {
+router.get('/',checkAuth, (req, res, next) => {
     Order.find()
         .select('product quantity _id')
         .populate('product', 'name price')// Populate the product field with the actual product data
@@ -33,7 +34,7 @@ router.get('/', (req, res, next) => {
         });
 });
 
-router.post('/', (req, res, next) => {
+router.post('/',checkAuth, (req, res, next) => {
     const productId = req.body.productId;
 
     Product.findById(productId)
@@ -75,7 +76,7 @@ router.post('/', (req, res, next) => {
 });
 
 // GET a specific order by ID
-router.get('/:orderId', (req, res, next) => {
+router.get('/:orderId',checkAuth, (req, res, next) => {
     const orderId = req.params.orderId;
 
     Order.findById(orderId)
@@ -104,7 +105,7 @@ router.get('/:orderId', (req, res, next) => {
 });
 
 // DELETE a specific order by ID
-router.delete('/:orderId', (req, res, next) => {
+router.delete('/:orderId',checkAuth, (req, res, next) => {
     const orderId = req.params.orderId;
 
     Order.findByIdAndDelete(orderId)
