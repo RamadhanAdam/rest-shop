@@ -6,3 +6,4 @@
 -`npm install --save body-parser` - parsing the body of incoming requests
 
 npm install --save mongoose
+npm isntall --save multer

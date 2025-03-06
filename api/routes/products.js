@@ -2,151 +2,160 @@ const express = require("express");
 const router = express.Router();
 const Product = require("../models/product");
 const mongoose = require("mongoose");
+const multer = require("multer");
 
-router.get("/", (req, res, next) => {
+// Configure Multer Storage
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./uploads");
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + "-" + file.originalname); 
+  },
+});
 
+const fileFilter = (req, file, cb) => {
+  if(file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    cb(null, true)    //accept a file
+  } else {
+    cb(null, false) 
+  } //reject a file
+
+}
+
+const upload = multer({ storage: storage , limit :{
+  fileSize : 1024 * 1024 * 5
+},
+fileFilter :fileFilter
+});
+
+// GET all products
+router.get("/", (req, res) => {
   Product.find()
-    .select('name price_id')
+    .select("name price productImage") // Fix: Use correct field names
     .exec()
-    .then(docs => {
+    .then((docs) => {
       const response = {
         count: docs.length,
-        products: docs.map(doc => {
-          return {
-            name: doc.name,
-            price: doc.price,
-            _id: doc._id,
-            url: {
-              type: 'GET',
-              url: 'http://localhost:3000/products/' + doc.id
-            }
-          }
-        })
-      }
-      // if(docs.length >= 0){
+        products: docs.map((doc) => ({
+          name: doc.name,
+          price: doc.price,
+          productImage : doc.productImage,
+          _id: doc._id,
+          url: {
+            type: "GET",
+            url: `http://localhost:3000/products/${doc._id}`,
+          },
+        })),
+      };
       res.status(200).json(response);
-      // } else {
-      //   res.status(400).json({
-      //     message: "No entries found"
-      //   });
-      // }
-
     })
     .catch((err) => {
-      console.log(err);
-      res.status(500).json({
-        error: err
-      })
+      console.error(err);
+      res.status(500).json({ error: err });
     });
 });
 
-router.post("/", (req, res, next) => {
+// POST a new product
+router.post("/", upload.single("productImage"), (req, res) => {
+  console.log(req.file); 
+
   const product = new Product({
     _id: new mongoose.Types.ObjectId(),
     name: req.body.name,
     price: req.body.price,
+    productImage : req.file.path 
   });
 
   product
     .save()
     .then((result) => {
-      console.log(result);
       res.status(201).json({
-        message: "Created product successfuly",
+        message: "Created product successfully",
         createdProduct: {
           name: result.name,
           price: result.price,
           _id: result._id,
           request: {
             type: "GET",
-            url: 'http://localhost:3000/products/' + result._id
-          }
+            url: `http://localhost:3000/products/${result._id}`,
+          },
         },
       });
     })
     .catch((err) => {
-      console.log(err)
-      res.status(500).json({
-        err: err
-      })
-    }); //chains into a promise
+      console.error(err);
+      res.status(500).json({ error: err });
+    });
 });
 
-router.get("/:productId", (req, res, next) => {
-  const id = req.params.productId;
-  Product.findById(id)
-    .select('name price_id')
+// GET product by ID
+router.get("/:productId", (req, res) => {
+  Product.findById(req.params.productId)
+    .select("name price productImage") // Fix: Remove incorrect `price_id`
     .exec()
-    .then(doc => {
-      console.log(doc);
+    .then((doc) => {
       if (doc) {
         res.status(200).json({
           product: doc,
           request: {
             type: "GET",
-            description: 'GET_ALL_PRODUCTS',
-            url: 'http://localhost:3000/products/'
-          }
-        })
+            description: "GET_ALL_PRODUCTS",
+            url: "http://localhost:3000/products/",
+          },
+        });
       } else {
-        res.status(404).json({
-          message: `No valid entry found for ID : ${id}`
-        })
+        res.status(404).json({ message: `No valid entry found for ID: ${req.params.productId}` });
       }
-
     })
-    .catch(err => {
-      console.log(err);
-      res.status(500).json({ error: err })
-    })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: err });
+    });
 });
 
-router.patch("/:productId", (req, res, next) => {
-  const id = req.params.productId
+// PATCH update a product
+router.patch("/:productId", (req, res) => {
   const updateOps = {};
-
   for (const ops of req.body) {
     updateOps[ops.propName] = ops.value;
   }
 
-  Product.updateOne({ _id: id }, { $set: updateOps })
+  Product.updateOne({ _id: req.params.productId }, { $set: updateOps })
     .exec()
-    .then(result => {
+    .then(() => {
       res.status(200).json({
         message: "Product updated",
-        type: "GET",
-        url: 'http://localhost:3000/products/' + id
-      })
+        request: {
+          type: "GET",
+          url: `http://localhost:3000/products/${req.params.productId}`,
+        },
+      });
     })
-    .catch(err => {
-      console.log(err)
-      res.status(500).json({
-        error: err
-      })
-    })
-
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: err });
+    });
 });
 
-router.delete("/:productId", (req, res, next) => {
-  const id = req.params.productId
-  Product.deleteOne({ _id: id })
+// DELETE a product
+router.delete("/:productId", (req, res) => {
+  Product.deleteOne({ _id: req.params.productId })
     .exec()
-    .then(result => {
+    .then(() => {
       res.status(200).json({
-        message: "product deleted",
+        message: "Product deleted",
         request: {
-        type: "POST",
-        url: 'http://localhost:3000/products/',
-        body : {name : "String", price : "Number"}
-      }
-
+          type: "POST",
+          url: "http://localhost:3000/products/",
+          body: { name: "String", price: "Number" },
+        },
       });
-})
-  .catch(err => {
-    res.status(500).json({
-      error: err
     })
-  })
+    .catch((err) => {
+      console.error(err);
+      res.status(500).json({ error: err });
+    });
 });
 
 module.exports = router;
